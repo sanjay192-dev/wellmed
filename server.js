@@ -8,7 +8,7 @@ const PORT = process.env.PORT || 5000;
 
 // ✅ CORS: allow frontend hosted on Vercel
 app.use(cors({
-  origin: 'https://wellmade-ai.vercel.app',
+  origin: 'http://localhost:5173',
   credentials: true,
 }));
 
