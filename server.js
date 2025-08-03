@@ -63,7 +63,10 @@ Health vitals or measurements (e.g., blood pressure, oxygen saturation, glucose 
 
 Messages may include direct medical terms or implied medical concerns (e.g., "I feel unwell", "My BP is high", "Can I see a doctor today?").
 
-If the user's message relates to any of the topics above, respond strictly with "yes". Otherwise, respond with "no".
+✅ If **any part** of the conversation involves these topics or implies them (e.g., “how long does it take to go away?” after asking about fever), respond with **yes**.
+
+❌ If the conversation is unrelated to health or medical topics (e.g., “tell me a joke”, “how’s the weather”), respond with **no**.
+
 
 Do not explain. Respond with only a single word — "yes" or "no" — without punctuation.`
     },
