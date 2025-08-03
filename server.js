@@ -70,22 +70,26 @@ Messages may include direct medical terms or implied medical concerns (e.g., "I 
   
 If the user's message relates to any of the topics above, respond strictly with "yes". Otherwise, respond with "no".  
   
-Do not explain. Respond with only a single word — "yes" or "no" — without punctuation.      },       {       role: 'user',       content: userMessage       }       ];       const response = await fetch('https://api.openai.com/v1/chat/completions', {       method: 'POST',       headers: {       'Content-Type': 'application/json',       'Authorization':Bearer ${process.env.OPENAI_API_KEY}`,  
-},  
-body: JSON.stringify({  
-model: 'gpt-3.5-turbo',  
-messages: classificationPrompt,  
-max_tokens: 1,  
-temperature: 0,  
-}),  
-});  
+Do not explain. Respond with only a single word — "yes" or "no" — without punctuation.      },       {       role: 'user',       content: userMessage       }       ];       
   
 const data = await response.json();  
 const classification = data.choices?.[0]?.message?.content?.trim().toLowerCase();  
   
 return classification === 'yes';  
 }  
-  
+const response = await fetch('https://api.openai.com/v1/chat/completions', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,  // ✅ FIXED HERE
+  },
+  body: JSON.stringify({
+    model: 'gpt-3.5-turbo',
+    messages: classificationPrompt,
+    max_tokens: 1,
+    temperature: 0,
+  }),
+});  
 
 
 
