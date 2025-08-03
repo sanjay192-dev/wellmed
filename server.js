@@ -7,21 +7,9 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // ✅ CORS: allow frontend hosted on Vercel
-const allowedOrigins = [
-  'https://www.wellmedai.com',
-  'http://localhost:5173'
-];
-
 app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin (e.g. curl or mobile apps)
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true
+  origin: 'https://www.wellmedai.com',
+  credentials: true,
 }));
 
 app.use(express.json());
@@ -82,10 +70,10 @@ Do not explain. Respond with only a single word — "yes" or "no" — without pu
   return classification === 'yes';
 }
 
-/**
- * ✅ Proxy endpoint for OpenAI API
- * Filters non-medical requests using the classifier before forwarding
- */
+
+
+let previousContextMedical = false; // Store this in memory or session for production
+
 app.post('/api/chat', async (req, res) => {
   try {
     const {
@@ -95,9 +83,16 @@ app.post('/api/chat', async (req, res) => {
       temperature = 0.7,
     } = req.body;
 
-    const allowed = await isMedicalQuery(messages);
+    const isCurrentMessageMedical = await isMedicalQuery(messages);
+    
+    // Extract the most recent user message
+    const lastUserMessage = messages?.filter(m => m.role === 'user').pop()?.content || '';
 
-    if (!allowed) {
+    // If message is medical or previous context was medical and message is short/ambiguous → allow it
+    const isLikelyFollowUp = previousContextMedical && !isCurrentMessageMedical && lastUserMessage.length < 100;
+
+    if (!isCurrentMessageMedical && !isLikelyFollowUp) {
+      previousContextMedical = false; // reset context
       return res.json({
         choices: [{
           message: {
@@ -107,6 +102,8 @@ app.post('/api/chat', async (req, res) => {
         }]
       });
     }
+
+    previousContextMedical = true; // keep allowing follow-ups
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -141,7 +138,6 @@ app.post('/api/chat', async (req, res) => {
     });
   }
 });
-
 /**
  * ✅ Health check endpoint
  */
