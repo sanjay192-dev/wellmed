@@ -25,7 +25,8 @@ app.use(cors({
 }));
 
 app.use(express.json());
-
+// ✅ In-memory session storage
+const chatSessions = {};
 /**
 ✅ Classifies if the message is medical-related using OpenAI
 */
@@ -99,25 +100,39 @@ Respond with only a single word — "yes" or "no" — no punctuation.`
 ✅ Proxy endpoint for OpenAI API
 Filters non-medical requests using the classifier before forwarding
 */
+
 app.post('/api/chat', async (req, res) => {
   try {
     const {
-      messages,
+      sessionId,
+      message, // { role: 'user', content: '...' }
       model = 'gpt-4o-mini',
       max_tokens = 1000,
       temperature = 0.7,
     } = req.body;
 
-   const allowed = await isMedicalQuery(chatSessions[sessionId]); 
+    if (!sessionId || !message || message.role !== 'user') {
+      return res.status(400).json({ error: 'Missing or invalid sessionId or message' });
+    }
+
+    if (!chatSessions[sessionId]) {
+      chatSessions[sessionId] = [
+        { role: 'system', content: 'You are WellMed AI, a helpful assistant specialized in medical coding and healthcare support.' }
+      ];
+    }
+
+    chatSessions[sessionId].push(message);
+
+    const allowed = await isMedicalQuery(chatSessions[sessionId]);
 
     if (!allowed) {
+      const warning = {
+        role: 'assistant',
+        content: "❌ Sorry, WellMed AI is strictly a medical coding and healthcare assistant. We can't respond to unrelated topics.",
+      };
+      chatSessions[sessionId].push(warning);
       return res.json({
-        choices: [{
-          message: {
-            role: 'assistant',
-            content: "❌ Sorry, WellMed AI is strictly a medical coding and healthcare assistant. We can't respond to unrelated topics.",
-          }
-        }]
+        choices: [{ message: warning }]
       });
     }
 
@@ -129,7 +144,7 @@ app.post('/api/chat', async (req, res) => {
       },
       body: JSON.stringify({
         model,
-        messages,
+        messages: chatSessions[sessionId],
         max_tokens,
         temperature,
       }),
@@ -145,6 +160,11 @@ app.post('/api/chat', async (req, res) => {
       });
     }
 
+    const assistantReply = data.choices?.[0]?.message;
+    if (assistantReply) {
+      chatSessions[sessionId].push(assistantReply);
+    }
+
     res.json(data);
   } catch (error) {
     console.error('Server Error:', error);
@@ -154,6 +174,9 @@ app.post('/api/chat', async (req, res) => {
     });
   }
 });
+
+
+
 
 /**
 ✅ Health check endpoint
