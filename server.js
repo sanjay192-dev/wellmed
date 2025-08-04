@@ -30,8 +30,12 @@ app.use(express.json());
 ✅ Classifies if the message is medical-related using OpenAI
 */
 async function isMedicalQuery(messages) {
-  const userMessage = messages?.find(msg => msg.role === 'user')?.content || '';
 
+  const combinedContent = messages
+  .map(msg => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`)
+  .join('\n')
+  .slice(-2000); // trim long context if needed
+  
   const classificationPrompt = [
     {
       role: 'system',
@@ -71,7 +75,7 @@ Do not explain. Respond with only a single word — "yes" or "no" — without pu
     },
     {
       role: 'user',
-      content: userMessage
+      content: combinedContent
     }
   ];
 
