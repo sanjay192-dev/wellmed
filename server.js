@@ -98,20 +98,25 @@ Do not explain. Respond with only a single word — "yes" or "no" — without pu
 async function isFollowUpMedicalQuery(messages) {
   const lastUserMessage = messages?.filter(msg => msg.role === 'user').slice(-1)[0]?.content || '';
 
-  // Step 1: If the current user message is directly medical, allow it
+  // Step 1: If the current message is directly medical, allow it
   const isCurrentMedical = await isMedicalQuery([{ role: 'user', content: lastUserMessage }]);
   if (isCurrentMedical) return true;
 
-  // Step 2: Check if *any* previous assistant message was medical
+  // Step 2: Pair assistant and user message together to simulate context
   const assistantMessages = messages.filter(msg => msg.role === 'assistant').reverse();
 
   for (const assistantMsg of assistantMessages) {
-    const wasMedical = await isMedicalQuery([{ role: 'user', content: assistantMsg.content }]);
-    if (wasMedical) return true; // Allow follow-up
+    const simulatedFollowup = [
+      { role: 'user', content: assistantMsg.content },
+      { role: 'user', content: lastUserMessage }
+    ];
+
+    const isFollowUpRelated = await isMedicalQuery(simulatedFollowup);
+    if (isFollowUpRelated) return true;
   }
 
   return false;
-                                            }
+}
 
 
   
