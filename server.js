@@ -93,30 +93,23 @@ Do not explain. Respond with only a single word — "yes" or "no" — without pu
   return classification === 'yes';
 }
 
-
-
 async function isFollowUpMedicalQuery(messages) {
   const lastUserMessage = messages?.filter(msg => msg.role === 'user').slice(-1)[0]?.content || '';
+  const lastAssistantMessage = messages?.filter(msg => msg.role === 'assistant').slice(-1)[0]?.content || '';
 
-  // Step 1: If the current message is directly medical, allow it
+  // Step 1: If the latest message is clearly medical, allow it
   const isCurrentMedical = await isMedicalQuery([{ role: 'user', content: lastUserMessage }]);
   if (isCurrentMedical) return true;
 
-  // Step 2: Pair assistant and user message together to simulate context
-  const assistantMessages = messages.filter(msg => msg.role === 'assistant').reverse();
+  // Step 2: Merge assistant + follow-up message into one user message for better classification
+  const simulatedContextMessage = `${lastAssistantMessage}\n\n${lastUserMessage}`;
 
-  for (const assistantMsg of assistantMessages) {
-    const simulatedFollowup = [
-      { role: 'user', content: assistantMsg.content },
-      { role: 'user', content: lastUserMessage }
-    ];
+  const isFollowUpRelated = await isMedicalQuery([
+    { role: 'user', content: simulatedContextMessage }
+  ]);
 
-    const isFollowUpRelated = await isMedicalQuery(simulatedFollowup);
-    if (isFollowUpRelated) return true;
-  }
-
-  return false;
-}
+  return isFollowUpRelated;
+      }
 
 
   
