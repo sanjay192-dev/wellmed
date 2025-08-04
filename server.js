@@ -14,6 +14,7 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: function (origin, callback) {
+    // Allow requests with no origin (e.g. curl or mobile apps)
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
@@ -25,44 +26,54 @@ app.use(cors({
 
 app.use(express.json());
 
-// ✅ In-memory session storage
-const chatSessions = {};
-
 /**
 ✅ Classifies if the message is medical-related using OpenAI
-Only checks latest user message
 */
 async function isMedicalQuery(messages) {
-  const userMessage = messages?.find(msg => msg.role === 'user')?.content || '';
+  // If available, include the assistant's last response before user input
+  const recentMessages = messages.slice(-3); // last assistant + latest user
+  const userContent = messages.at(-1)?.content || '';
 
   const classificationPrompt = [
     {
       role: 'system',
-      content: `You are a strict binary classifier. Determine if the user's message is related to any of the following medical topics:
+      content: `You are a strict binary classifier. Determine if the user's message — possibly a follow-up — is related to any of the following medical topics:
 
 Symptoms (e.g., fever, stomach pain, dizziness, fatigue, "not feeling well", "feeling sick")
+
 Diseases and conditions (e.g., diabetes, typhoid, asthma, cancer, infections, chronic illness)
+
 Medications or drugs (e.g., paracetamol, antibiotics, insulin, dosage, side effects, drug interactions)
+
 Medical coding (e.g., ICD, CPT, HCPCS, billing codes, modifiers, diagnosis codes)
+
 Diagnosis or treatment (e.g., test results, prescriptions, therapies, interpretation of lab reports)
+
 Healthcare services (e.g., consultation, OPD, emergency, telemedicine, appointments, hospital logistics)
+
 Insurance and billing (e.g., medical claims, reimbursements, coverage questions, preauthorization)
+
 Clinical procedures (e.g., MRI, surgery, X-ray, CT scan, biopsy, endoscopy)
+
 Body parts or human anatomy (e.g., heart, lungs, spine, liver, joints, nerves)
+
 Mental health (e.g., anxiety, depression, counseling, psychiatric care)
+
 Medical devices or equipment (e.g., pacemaker, glucometer, thermometer, wheelchair)
+
 Health vitals or measurements (e.g., blood pressure, oxygen saturation, glucose levels, heart rate)
 
 Messages may include direct medical terms or implied medical concerns (e.g., "I feel i", "My BP is high", "Can I see a doctor today?").
 
-If the user's message relates to any of the topics above, respond strictly with "yes". Otherwise, respond with "no".
 
-Do not explain. Respond with only a single word — "yes" or "no" — without punctuation.`
+
+Use the recent conversation history (context) to understand if it's a medical follow-up.
+
+If the user's message is related to the topics above, even implicitly or as a follow-up, respond with "yes". Otherwise, respond with "no".
+
+Respond with only a single word — "yes" or "no" — no punctuation.`
     },
-    {
-      role: 'user',
-      content: userMessage
-    }
+    ...recentMessages
   ];
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -83,50 +94,33 @@ Do not explain. Respond with only a single word — "yes" or "no" — without pu
   const classification = data.choices?.[0]?.message?.content?.trim().toLowerCase();
   return classification === 'yes';
 }
-
+  
 /**
-✅ Chat endpoint with session-based memory
-Supports continuous follow-up chat like ChatGPT
+✅ Proxy endpoint for OpenAI API
+Filters non-medical requests using the classifier before forwarding
 */
 app.post('/api/chat', async (req, res) => {
   try {
     const {
-      sessionId,
-      message, // { role: 'user', content: '...' }
+      messages,
       model = 'gpt-4o-mini',
       max_tokens = 1000,
       temperature = 0.7,
     } = req.body;
 
-    if (!sessionId || !message || message.role !== 'user') {
-      return res.status(400).json({ error: 'Missing or invalid sessionId or message' });
-    }
-
-    // Initialize session with a system prompt
-    if (!chatSessions[sessionId]) {
-      chatSessions[sessionId] = [
-        { role: 'system', content: 'You are WellMed AI, a helpful assistant specialized in medical coding and healthcare support.' }
-      ];
-    }
-
-    // Add user's new message
-    chatSessions[sessionId].push(message);
-
-    // Classify only the latest user message
-    const allowed = await isMedicalQuery([message]);
+   const allowed = await isMedicalQuery(chatSessions[sessionId]); 
 
     if (!allowed) {
-      const warning = {
-        role: 'assistant',
-        content: "❌ Sorry, WellMed AI is strictly a medical coding and healthcare assistant. We can't respond to unrelated topics.",
-      };
-      chatSessions[sessionId].push(warning);
       return res.json({
-        choices: [{ message: warning }]
+        choices: [{
+          message: {
+            role: 'assistant',
+            content: "❌ Sorry, WellMed AI is strictly a medical coding and healthcare assistant. We can't respond to unrelated topics.",
+          }
+        }]
       });
     }
 
-    // Send full chat history to OpenAI
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -135,7 +129,7 @@ app.post('/api/chat', async (req, res) => {
       },
       body: JSON.stringify({
         model,
-        messages: chatSessions[sessionId],
+        messages,
         max_tokens,
         temperature,
       }),
@@ -149,11 +143,6 @@ app.post('/api/chat', async (req, res) => {
         error: 'OpenAI API Error',
         details: data.error?.message || 'Unknown error',
       });
-    }
-
-    const assistantReply = data.choices?.[0]?.message;
-    if (assistantReply) {
-      chatSessions[sessionId].push(assistantReply);
     }
 
     res.json(data);
