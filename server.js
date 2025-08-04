@@ -14,7 +14,6 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (e.g. curl or mobile apps)
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
@@ -27,9 +26,8 @@ app.use(cors({
 app.use(express.json());
 
 /**
- * ✅ Classifies if the message is medical-related using OpenAI
+ * ✅ Classifies if the message is medical-related using OpenAI (uses full context)
  */
-
 async function isMedicalQuery(messages) {
   const classificationPrompt = [
     {
@@ -49,13 +47,15 @@ Mental health (e.g., anxiety, depression, counseling, psychiatric care)
 Medical devices or equipment (e.g., pacemaker, glucometer, thermometer, wheelchair)
 Health vitals or measurements (e.g., blood pressure, oxygen saturation, glucose levels, heart rate)
 
-✅ If **any part** of the conversation involves these topics or implies them (e.g., “how long does it take to go away?” after asking about fever), respond with **yes**.
+Messages may include direct medical terms or implied medical concerns (e.g., "I feel unwell", "My BP is high", "Can I see a doctor today?").
 
-❌ If the conversation is unrelated to health or medical topics (e.g., “tell me a joke”, “how’s the weather”), respond with **no**.
+✅ If any part of the conversation involves these topics or implies them (e.g., “how long does it take to go away?” after asking about fever), respond with yes.
 
-Only respond with one word: "yes" or "no" (no punctuation).`
-  },
-  ...messages // 👈 Include full conversation
+❌ If the conversation is unrelated to health or medical topics (e.g., “tell me a joke”, “how’s the weather”), respond with no.
+
+Do not explain. Respond with only a single word — "yes" or "no" — without punctuation.`
+    },
+    ...messages  // ✅ Use entire conversation context
   ];
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -77,6 +77,86 @@ Only respond with one word: "yes" or "no" (no punctuation).`
 
   return classification === 'yes';
 }
+
+/**
+ * ✅ Proxy endpoint for OpenAI API
+ * Filters non-medical requests using the classifier before forwarding
+ */
+app.post('/api/chat', async (req, res) => {
+  try {
+    const {
+      messages,
+      model = 'gpt-4o-mini',
+      max_tokens = 1000,
+      temperature = 0.7,
+    } = req.body;
+
+    const allowed = await isMedicalQuery(messages);
+
+    if (!allowed) {
+      return res.json({
+        choices: [{
+          message: {
+            role: 'assistant',
+            content: "❌ Sorry, WellMed AI is strictly a medical coding and healthcare assistant. We can't respond to unrelated topics.",
+          }
+        }]
+      });
+    }
+
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages,
+        max_tokens,
+        temperature,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error('OpenAI API Error:', data);
+      return res.status(response.status).json({
+        error: 'OpenAI API Error',
+        details: data.error?.message || 'Unknown error',
+      });
+    }
+
+    res.json(data);
+  } catch (error) {
+    console.error('Server Error:', error);
+    res.status(500).json({
+      error: 'Internal Server Error',
+      details: error.message,
+    });
+  }
+});
+
+/**
+ * ✅ Health check endpoint
+ */
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'OK',
+    message: 'Server is running',
+    environment: process.env.NODE_ENV || 'development',
+  });
+});
+
+// ✅ Start the server
+app.listen(PORT, () => {
+  console.log(`✅ Server running on port ${PORT}`);
+  console.log(`🌐 CORS allowed from: ${allowedOrigins.join(', ')}`);
+  console.log(`🔍 Health check: http://localhost:${PORT}/api/health`);
+});
+
+module.exports = app;
 
 
 
