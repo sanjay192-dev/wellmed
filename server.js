@@ -93,6 +93,28 @@ Do not explain. Respond with only a single word — "yes" or "no" — without pu
   return classification === 'yes';
 }
 
+
+
+async function isFollowUpMedicalQuery(messages) {
+  const lastUserMessage = messages?.filter(msg => msg.role === 'user').slice(-1)[0]?.content || '';
+  const lastAssistantMessage = messages?.filter(msg => msg.role === 'assistant').slice(-1)[0]?.content || '';
+
+  // Step 1: Check if current user message is not medical
+  const isCurrentMedical = await isMedicalQuery([{ role: 'user', content: lastUserMessage }]);
+  if (isCurrentMedical) return true; // if it's medical, allow it
+
+  // Step 2: If last assistant response was medical-related, allow follow-up
+  const wasPreviousMedical = await isMedicalQuery([{ role: 'user', content: lastAssistantMessage }]);
+  if (wasPreviousMedical) return true; // follow-up allowed
+
+  return false; // Neither direct nor follow-up medical
+    }
+
+
+
+
+
+  
 /**
 ✅ Proxy endpoint for OpenAI API
 Filters non-medical requests using the classifier before forwarding
@@ -106,8 +128,7 @@ app.post('/api/chat', async (req, res) => {
       temperature = 0.7,
     } = req.body;
 
-    const allowed = await isMedicalQuery(messages);
-
+    const allowed = await isFollowUpMedicalQuery(messages);
     if (!allowed) {
       return res.json({
         choices: [{
