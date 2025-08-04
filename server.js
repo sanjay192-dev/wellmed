@@ -29,51 +29,33 @@ app.use(express.json());
 /**
  * ✅ Classifies if the message is medical-related using OpenAI
  */
-async function isMedicalQuery(messages) {
-  const userMessage = messages?.find(msg => msg.role === 'user')?.content || '';
 
+async function isMedicalQuery(messages) {
   const classificationPrompt = [
     {
       role: 'system',
       content: `You are a strict binary classifier. Determine if the user's message is related to any of the following medical topics:
 
 Symptoms (e.g., fever, stomach pain, dizziness, fatigue, "not feeling well", "feeling sick")
-
 Diseases and conditions (e.g., diabetes, typhoid, asthma, cancer, infections, chronic illness)
-
 Medications or drugs (e.g., paracetamol, antibiotics, insulin, dosage, side effects, drug interactions)
-
 Medical coding (e.g., ICD, CPT, HCPCS, billing codes, modifiers, diagnosis codes)
-
 Diagnosis or treatment (e.g., test results, prescriptions, therapies, interpretation of lab reports)
-
 Healthcare services (e.g., consultation, OPD, emergency, telemedicine, appointments, hospital logistics)
-
 Insurance and billing (e.g., medical claims, reimbursements, coverage questions, preauthorization)
-
 Clinical procedures (e.g., MRI, surgery, X-ray, CT scan, biopsy, endoscopy)
-
 Body parts or human anatomy (e.g., heart, lungs, spine, liver, joints, nerves)
-
 Mental health (e.g., anxiety, depression, counseling, psychiatric care)
-
 Medical devices or equipment (e.g., pacemaker, glucometer, thermometer, wheelchair)
-
 Health vitals or measurements (e.g., blood pressure, oxygen saturation, glucose levels, heart rate)
-
-Messages may include direct medical terms or implied medical concerns (e.g., "I feel unwell", "My BP is high", "Can I see a doctor today?").
 
 ✅ If **any part** of the conversation involves these topics or implies them (e.g., “how long does it take to go away?” after asking about fever), respond with **yes**.
 
 ❌ If the conversation is unrelated to health or medical topics (e.g., “tell me a joke”, “how’s the weather”), respond with **no**.
 
-
-Do not explain. Respond with only a single word — "yes" or "no" — without punctuation.`
-    },
-    {
-      role: 'user',
-      content: userMessage
-    }
+Only respond with one word: "yes" or "no" (no punctuation).`
+  },
+  ...messages // 👈 Include full conversation
   ];
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -95,6 +77,10 @@ Do not explain. Respond with only a single word — "yes" or "no" — without pu
 
   return classification === 'yes';
 }
+
+
+
+
 
 /**
  * ✅ Proxy endpoint for OpenAI API
