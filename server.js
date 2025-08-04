@@ -30,12 +30,8 @@ app.use(express.json());
 ✅ Classifies if the message is medical-related using OpenAI
 */
 async function isMedicalQuery(messages) {
+  const userMessage = messages?.find(msg => msg.role === 'user')?.content || '';
 
-  const combinedContent = messages
-  .map(msg => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`)
-  .join('\n')
-  .slice(-2000); // trim long context if needed
-  
   const classificationPrompt = [
     {
       role: 'system',
@@ -67,15 +63,13 @@ Health vitals or measurements (e.g., blood pressure, oxygen saturation, glucose 
 
 Messages may include direct medical terms or implied medical concerns (e.g., "I feel unwell", "My BP is high", "Can I see a doctor today?").
 
-✅ If any part of the conversation involves these topics or implies them (e.g., “how long does it take to go away?” after asking about fever), respond with yes.
-
-❌ If the conversation is unrelated to health or medical topics (e.g., “tell me a joke”, “how’s the weather”), respond with no.
+If the user's message relates to any of the topics above, respond strictly with "yes". Otherwise, respond with "no".
 
 Do not explain. Respond with only a single word — "yes" or "no" — without punctuation.`
     },
     {
       role: 'user',
-      content: combinedContent
+      content: userMessage
     }
   ];
 
@@ -101,7 +95,6 @@ Do not explain. Respond with only a single word — "yes" or "no" — without pu
 
 /**
 ✅ Proxy endpoint for OpenAI API
-
 Filters non-medical requests using the classifier before forwarding
 */
 app.post('/api/chat', async (req, res) => {
