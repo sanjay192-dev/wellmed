@@ -8,20 +8,20 @@ const PORT = process.env.PORT || 5000;
 
 // ✅ CORS: allow frontend hosted on Vercel
 const allowedOrigins = [
-'https://www.wellmedai.com',
-'http://localhost:5173'
+  'https://www.wellmedai.com',
+  'http://localhost:5173'
 ];
 
 app.use(cors({
-origin: function (origin, callback) {
-// Allow requests with no origin (e.g. curl or mobile apps)
-if (!origin || allowedOrigins.includes(origin)) {
-callback(null, true);
-} else {
-callback(new Error('Not allowed by CORS'));
-}
-},
-credentials: true
+  origin: function (origin, callback) {
+    // Allow requests with no origin (e.g. curl or mobile apps)
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
 }));
 
 app.use(express.json());
@@ -30,12 +30,12 @@ app.use(express.json());
 ✅ Classifies if the message is medical-related using OpenAI
 */
 async function isMedicalQuery(messages) {
-const userMessage = messages?.find(msg => msg.role === 'user')?.content || '';
+  const userMessage = messages?.find(msg => msg.role === 'user')?.content || '';
 
-const classificationPrompt = [
-{
-role: 'system',
-content: `You are a strict binary classifier. Determine if the user's message is related to any of the following medical topics:
+  const classificationPrompt = [
+    {
+      role: 'system',
+      content: `You are a strict binary classifier. Determine if the user's message is related to any of the following medical topics:
 
 Symptoms (e.g., fever, stomach pain, dizziness, fatigue, "not feeling well", "feeling sick")
 
@@ -66,53 +66,31 @@ Messages may include direct medical terms or implied medical concerns (e.g., "I 
 If the user's message relates to any of the topics above, respond strictly with "yes". Otherwise, respond with "no".
 
 Do not explain. Respond with only a single word — "yes" or "no" — without punctuation.`
-},
-{
-role: 'user',
-content: userMessage
-}
-];
+    },
+    {
+      role: 'user',
+      content: userMessage
+    }
+  ];
 
-const response = await fetch('https://api.openai.com/v1/chat/completions', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-  },
-  body: JSON.stringify({
-    model: 'gpt-3.5-turbo',
-    messages: classificationPrompt,
-    max_tokens: 1,
-    temperature: 0,
-  }),
-});
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: 'gpt-3.5-turbo',
+      messages: classificationPrompt,
+      max_tokens: 1,
+      temperature: 0,
+    }),
+  });
 
-const data = await response.json();
-const classification = data.choices?.[0]?.message?.content?.trim().toLowerCase();
+  const data = await response.json();
+  const classification = data.choices?.[0]?.message?.content?.trim().toLowerCase();
 
-return classification === 'yes';
-}
-
-async function isFollowUpMedicalQuery(messages) {
-  const lastUserMessage = messages?.filter(msg => msg.role === 'user').slice(-1)[0]?.content || '';
-
-  // Step 1: If the current message is directly medical, allow it
-  const isCurrentMedical = await isMedicalQuery([{ role: 'user', content: lastUserMessage }]);
-  if (isCurrentMedical) return true;
-
-  // Step 2: Check if this is a follow-up question by combining the last assistant response with the current user question
-  const assistantMessages = messages.filter(msg => msg.role === 'assistant');
-  if (assistantMessages.length > 0) {
-    const lastAssistantMessage = assistantMessages[assistantMessages.length - 1].content;
-    
-    // Create a combined context to check if the follow-up is medical-related
-    const combinedContext = `${lastAssistantMessage}\n\nUser follow-up: ${lastUserMessage}`;
-    
-    const isFollowUpRelated = await isMedicalQuery([{ role: 'user', content: combinedContext }]);
-    if (isFollowUpRelated) return true;
-  }
-
-  return false;
+  return classification === 'yes';
 }
 
 /**
@@ -128,44 +106,44 @@ app.post('/api/chat', async (req, res) => {
       temperature = 0.7,
     } = req.body;
 
-    const allowed = await isFollowUpMedicalQuery(messages);  
-    if (!allowed) {  
-      return res.json({  
-        choices: [{  
-          message: {  
-            role: 'assistant',  
-            content: "❌ Sorry, WellMed AI is strictly a medical coding and healthcare assistant. We can't respond to unrelated topics.",  
-          }  
-        }]  
-      });  
-    }  
+    const allowed = await isMedicalQuery(messages);
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {  
-      method: 'POST',  
-      headers: {  
-        'Content-Type': 'application/json',  
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,  
-      },  
-      body: JSON.stringify({  
-        model,  
-        messages,  
-        max_tokens,  
-        temperature,  
-      }),  
-    });  
+    if (!allowed) {
+      return res.json({
+        choices: [{
+          message: {
+            role: 'assistant',
+            content: "❌ Sorry, WellMed AI is strictly a medical coding and healthcare assistant. We can't respond to unrelated topics.",
+          }
+        }]
+      });
+    }
 
-    const data = await response.json();  
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages,
+        max_tokens,
+        temperature,
+      }),
+    });
 
-    if (!response.ok) {  
-      console.error('OpenAI API Error:', data);  
-      return res.status(response.status).json({  
-        error: 'OpenAI API Error',  
-        details: data.error?.message || 'Unknown error',  
-      });  
-    }  
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error('OpenAI API Error:', data);
+      return res.status(response.status).json({
+        error: 'OpenAI API Error',
+        details: data.error?.message || 'Unknown error',
+      });
+    }
 
     res.json(data);
-
   } catch (error) {
     console.error('Server Error:', error);
     res.status(500).json({
