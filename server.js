@@ -89,37 +89,39 @@ Filters non-medical requests using the classifier before forwarding
 app.post('/api/chat', async (req, res) => {
   try {
     const {
-      sessionId,
-      message, // { role: 'user', content: '...' }
-      model = 'gpt-4o-mini',
-      max_tokens = 1000,
-      temperature = 0.7,
-    } = req.body;
+  sessionId,
+  messages, // <-- new structure
+  model = 'gpt-4o-mini',
+  max_tokens = 1000,
+  temperature = 0.7,
+} = req.body;
 
-    if (!sessionId || !message || message.role !== 'user') {
-      return res.status(400).json({ error: 'Missing or invalid sessionId or message' });
-    }
+// ✅ Validate input
+if (!sessionId || !Array.isArray(messages) || messages.length === 0) {
+  return res.status(400).json({ error: 'Missing or invalid sessionId or messages' });
+}
 
-    if (!chatSessions[sessionId]) {
-      chatSessions[sessionId] = [
-        { role: 'system', content: 'You are WellMed AI, a helpful assistant specialized in medical coding and healthcare support.' }
-      ];
-    }
+// ✅ Initialize session if not exists
+if (!chatSessions[sessionId]) {
+  chatSessions[sessionId] = [];
+}
 
-    chatSessions[sessionId].push(message);
+// ✅ Append all messages from frontend (system + user)
+chatSessions[sessionId].push(...messages);
 
-    const allowed = await isMedicalQuery(chatSessions[sessionId]);
+// ✅ Run classifier on updated conversation history
+const allowed = await isMedicalQuery(chatSessions[sessionId]);
 
-    if (!allowed) {
-      const warning = {
-        role: 'assistant',
-        content: "❌ Sorry, WellMed AI is strictly a medical coding and healthcare assistant. We can't respond to unrelated topics.",
-      };
-      chatSessions[sessionId].push(warning);
-      return res.json({
-        choices: [{ message: warning }]
-      });
-    }
+if (!allowed) {
+  const warning = {
+    role: 'assistant',
+    content: "❌ Sorry, WellMed AI is strictly a medical coding and healthcare assistant. We can't respond to unrelated topics.",
+  };
+  chatSessions[sessionId].push(warning);
+  return res.json({
+    choices: [{ message: warning }]
+  });
+}
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
