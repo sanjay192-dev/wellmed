@@ -87,7 +87,7 @@ app.post('/api/chat', async (req, res) => {
     const {    
       sessionId,    
       message, // { role: 'user', content: '...' }    
-      model = 'gpt-4o-mini',    
+      model = 'gpt-4o',    
       max_tokens = 1000,    
       temperature = 0.7,    
     } = req.body;    
