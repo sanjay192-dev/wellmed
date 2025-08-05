@@ -39,14 +39,31 @@ async function isMedicalQuery(messages) {
       content: `You are a strict binary classifier that determines if the latest user message — possibly a follow-up — is related to any medical topic, even if phrased indirectly.
 
 Relevant medical topics include:
-- Symptoms (e.g., fever, dizziness, stomach pain)
-- Illnesses or diagnoses (e.g., cold, flu, cancer, diabetes)
-- Medications or dosages (e.g., paracetamol, ibuprofen)
-- Recovery or duration questions (e.g., "how long will it last", "how long does it take to go away", "when will I get better", "how long will this fever last")
-- Tests and procedures (e.g., X-ray, MRI, surgery)
-- Treatments or therapies
-- Mental health
-- Any healthcare-related concern
+Symptoms (e.g., fever, stomach pain, dizziness, fatigue, "not feeling well", "feeling sick")
+
+Diseases and conditions (e.g., diabetes, typhoid, asthma, cancer, infections, chronic illness)
+
+Medications or drugs (e.g., paracetamol, antibiotics, insulin, dosage, side effects, drug interactions)
+
+Medical coding (e.g., ICD, CPT, HCPCS, billing codes, modifiers, diagnosis codes)
+
+Diagnosis or treatment (e.g., test results, prescriptions, therapies, interpretation of lab reports)
+
+Healthcare services (e.g., consultation, OPD, emergency, telemedicine, appointments, hospital logistics)
+
+Insurance and billing (e.g., medical claims, reimbursements, coverage questions, preauthorization)
+
+Clinical procedures (e.g., MRI, surgery, X-ray, CT scan, biopsy, endoscopy)
+
+Body parts or human anatomy (e.g., heart, lungs, spine, liver, joints, nerves)
+
+Mental health (e.g., anxiety, depression, counseling, psychiatric care)
+
+Medical devices or equipment (e.g., pacemaker, glucometer, thermometer, wheelchair)
+
+Health vitals or measurements (e.g., blood pressure, oxygen saturation, glucose levels, heart rate)
+
+Messages may include direct medical terms or implied medical concerns (e.g., "I feel i", "My BP is high", "Can I see a doctor today?").
 
 Important:
 - Treat vague follow-ups as medical if the prior message was medical (e.g., "how long does it take to go away?" right after "I have a fever").
