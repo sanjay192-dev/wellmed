@@ -36,29 +36,25 @@ async function isMedicalQuery(messages) {
   const classificationPrompt = [    
     {    
       role: 'system',    
-      content: `You are a strict binary classifier. Determine if the user's message — possibly a follow-up — is related to any of the following medical topics:    
-    
-Symptoms (e.g., fever, stomach pain, dizziness, fatigue, "not feeling well", "feeling sick")    
-Diseases and conditions (e.g., diabetes, typhoid, asthma, cancer, infections, chronic illness)    
-Medications or drugs (e.g., paracetamol, antibiotics, insulin, dosage, side effects, drug interactions)    
-Medical coding (e.g., ICD, CPT, HCPCS, billing codes, modifiers, diagnosis codes)    
-Diagnosis or treatment (e.g., test results, prescriptions, therapies, interpretation of lab reports)    
-Healthcare services (e.g., consultation, OPD, emergency, telemedicine, appointments, hospital logistics)    
-Insurance and billing (e.g., medical claims, reimbursements, coverage questions, preauthorization)    
-Clinical procedures (e.g., MRI, surgery, X-ray, CT scan, biopsy, endoscopy)    
-Body parts or human anatomy (e.g., heart, lungs, spine, liver, joints, nerves)    
-Mental health (e.g., anxiety, depression, counseling, psychiatric care)    
-Medical devices or equipment (e.g., pacemaker, glucometer, thermometer, wheelchair)    
-Health vitals or measurements (e.g., blood pressure, oxygen saturation, glucose levels, heart rate)    
-    
-Messages may include direct medical terms or implied medical concerns (e.g., "I feel i", "My BP is high", "Can I see a doctor today?").    
-    
-Use the entire conversation history (context) to determine if it's a medical follow-up.    
-    
-If the user's message is related to the topics above, even implicitly or as a follow-up, respond with "yes". Otherwise, respond with "no".    
-    
-Respond with only a single word — "yes" or "no" — no punctuation.`    
-    },    
+      content: `You are a strict binary classifier that determines if the latest user message — possibly a follow-up — is related to any medical topic, even if phrased indirectly.
+
+Relevant medical topics include:
+- Symptoms (e.g., fever, dizziness, stomach pain)
+- Illnesses or diagnoses (e.g., cold, flu, cancer, diabetes)
+- Medications or dosages (e.g., paracetamol, ibuprofen)
+- Recovery or duration questions (e.g., "how long will it last", "how long does it take to go away", "when will I get better", "how long will this fever last")
+- Tests and procedures (e.g., X-ray, MRI, surgery)
+- Treatments or therapies
+- Mental health
+- Any healthcare-related concern
+
+Important:
+- Treat vague follow-ups as medical if the prior message was medical (e.g., "how long does it take to go away?" right after "I have a fever").
+- Be generous in interpreting intent — users may phrase things differently but still mean the same.
+- Consider the full conversation for context.
+- If the latest message is related to medicine, health, body, symptoms, treatments, or follow-up to such — return "yes".
+
+Respond only with one word: "yes" or "no" — no punctuation.`   },    
     ...messages    
   ];    
     
@@ -69,7 +65,7 @@ Respond with only a single word — "yes" or "no" — no punctuation.`
       'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,    
     },    
     body: JSON.stringify({    
-      model: 'gpt-3.5-turbo',    
+      model: 'gpt-4o',    
       messages: classificationPrompt,    
       max_tokens: 1,    
       temperature: 0,    
