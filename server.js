@@ -173,7 +173,33 @@ app.post('/api/chat', async (req, res) => {
   }    
 });    
     
-    
+
+
+// ✅ PDF Analysis Endpoint
+app.post('/api/analyze-pdf', upload.single('pdf'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No PDF file uploaded' });
+    }
+
+    const pdfBuffer = req.file.buffer;
+    const pdfData = await pdfParse(pdfBuffer);
+
+    res.json({
+      success: true,
+      text: pdfData.text,
+      pages: pdfData.numpages,
+      info: pdfData.info,
+    });
+  } catch (error) {
+    console.error('PDF Analysis Error:', error);
+    res.status(500).json({
+      error: 'PDF Analysis Error',
+      details: error.message,
+    });
+  }
+});
+
     
     
 /**    
