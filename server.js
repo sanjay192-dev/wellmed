@@ -14,7 +14,25 @@ const allowedOrigins = [
   'https://www.wellmedai.com',    
   'http://localhost:5173'    
 ];    
-    
+
+// Multer config for PDF uploads
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB
+  },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === 'application/pdf') {
+      cb(null, true);
+    } else {
+      cb(new Error('Only PDF files are allowed'), false);
+    }
+  },
+});
+
+
+
+
 app.use(cors({    
   origin: function (origin, callback) {    
     // Allow requests with no origin (e.g. curl or mobile apps)    
