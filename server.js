@@ -104,7 +104,7 @@ app.post('/api/chat', async (req, res) => {
     const {    
       sessionId,    
       message, // { role: 'user', content: '...' }    
-      model = 'gpt-3.5-turbo',    
+      model = 'gpt-4o',    
       max_tokens = 3500,    
       temperature = 0.7,    
     } = req.body;    
