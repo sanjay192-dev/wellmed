@@ -1,7 +1,10 @@
 const express = require('express');    
 const cors = require('cors');    
 const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));    
-require('dotenv').config();    
+require('dotenv').config();  
+const path = require('path');
+const multer = require('multer');
+const pdfParse = require('pdf-parse');
     
 const app = express();    
 const PORT = process.env.PORT || 5000;    
