@@ -130,7 +130,7 @@ app.post('/api/chat', async (req, res) => {
       message,
       pdfContent, // ✅ Extract this from body
       model = 'gpt-4o',
-      max_tokens = 3500,
+      max_tokens = 10000,
       temperature = 0.7,
     } = req.body;
 
