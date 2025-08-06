@@ -45,7 +45,10 @@ app.use(cors({
   credentials: true    
 }));    
     
-app.use(express.json());    
+app.use(express.json());  
+
+
+const pdfSessions = {}; // Store parsed PDF text by sessionId
 // ✅ In-memory session storage    
 const chatSessions = {};    
 /**    
@@ -136,9 +139,17 @@ app.post('/api/chat', async (req, res) => {
     }
 
     if (!chatSessions[sessionId]) {
-      chatSessions[sessionId] = [
-        { role: 'system', content: 'You are WellMed AI, a helpful assistant specialized in medical coding and healthcare support.' }
-      ];
+  chatSessions[sessionId] = [
+    { role: 'system', content: 'You are WellMed AI, a helpful assistant specialized in medical coding and healthcare support.' }
+  ];
+
+  // ✅ If PDF was uploaded for this session, inject it once
+  if (pdfSessions[sessionId]) {
+    chatSessions[sessionId].push({
+      role: 'user',
+      content: `The user previously uploaded the following document. Please consider its content in all follow-up questions:\n\n${pdfSessions[sessionId]}`
+    });
+  }
     }
 
     // ✅ Inject PDF content before user question (if available)
@@ -189,12 +200,20 @@ app.post('/api/chat', async (req, res) => {
 // ✅ PDF Analysis Endpoint
 app.post('/api/analyze-pdf', upload.single('pdf'), async (req, res) => {
   try {
+    const sessionId = req.body.sessionId; // Frontend must send this with PDF upload
+
+    if (!sessionId) {
+      return res.status(400).json({ error: 'Missing sessionId in PDF upload' });
+    }
+
     if (!req.file) {
       return res.status(400).json({ error: 'No PDF file uploaded' });
     }
 
     const pdfBuffer = req.file.buffer;
-    const pdfData = await pdfParse(pdfBuffer);
+    const pdfData = await pdfParse(pdfBuffer); // ✅ parse first
+
+    pdfSessions[sessionId] = pdfData.text; // ✅ now safe to access
 
     res.json({
       success: true,
@@ -210,7 +229,6 @@ app.post('/api/analyze-pdf', upload.single('pdf'), async (req, res) => {
     });
   }
 });
-
     
     
 /**    
